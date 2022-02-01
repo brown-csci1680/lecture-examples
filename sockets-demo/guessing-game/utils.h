@@ -11,4 +11,6 @@ void fatal_error(const char *message);
 
 void *get_in_addr(struct sockaddr *sa);
 
+void print_addr(char *msg, struct sockaddr *sa);
+
 #endif
