@@ -15,6 +15,17 @@
 
 #define LISTEN_MAX 20
 
+
+struct game_state {
+    pthread_mutex_t lock;
+    int32_t guess_number;
+    int32_t total_guesses;
+
+    // ...
+};
+
+struct game_state game_state;
+
 // Data we want to track for each client
 struct client_data {
     int sock;  // Socket file descriptor
@@ -24,10 +35,17 @@ struct client_data {
     pthread_t thread;
 };
 
+void init_game(void){
+    game_state.guess_number = rand() % 1000;
+    game_state.total_guesses = 0;
+
+    printf("The number is %d\n", game_state.guess_number);
+}
+
 void *client_handler(void *data)
 {
     struct client_data *cd = (struct client_data *)data;
-    printf("Client connected!\n");
+    //printf("Client connected!\n");
 
     // Wait for a message from the client
     struct guess_message msg;
@@ -36,7 +54,30 @@ void *client_handler(void *data)
 
     printf("Received guess:  %d\n", msg.number);
 
-    // TODO next class:  send response...
+    int response = 0;
+
+    // Modifications to server state start here
+    pthread_mutex_lock(&game_state.lock);
+
+    game_state.total_guesses++;
+    if (msg.number < game_state.guess_number) {
+	response = -1;
+    } else if (msg.number > game_state.guess_number) {
+	response = 1;
+    } else {
+	response = 0;
+	// Client won, so restart
+
+	init_game();
+	// TODO:  This isn't great--the clients don't know the game has restarted!
+	// What do we need to change about the server (and clients!) to change this?
+    }
+
+    // Done modifying server state
+    pthread_mutex_unlock(&game_state.lock);
+
+    send_guess_message(cd->sock, MESSAGE_TYPE_RESPONSE, response);
+
 
     pthread_exit(NULL);
 }
@@ -57,6 +98,9 @@ int main(int argc, char **argv)
 
     // Parse server port from command line
     char *server_port = argv[1];
+
+    init_game();
+    pthread_mutex_init(&game_state.lock, NULL);
 
     // Ask for a TCP socket that listens on all addresses
     struct addrinfo hints, *res;

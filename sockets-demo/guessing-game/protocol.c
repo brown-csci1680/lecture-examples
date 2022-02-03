@@ -95,7 +95,7 @@ int recv_guess_message(int sock, struct guess_message *msg)
     msg->number = ntohl(msg->number);
 
     // error handling might happen here...
-    printf("Received %d bytes\n", b);
+    //printf("Received %d bytes\n", b);
 
     return 1;
 }

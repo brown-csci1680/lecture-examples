@@ -80,6 +80,19 @@ int main(int argc, char **argv)
     send_guess_message(sock, MESSAGE_TYPE_GUESS, guess_number);
 
     // TODO next class:  Wait for a reply...
+    struct guess_message response;
+    rv = recv_guess_message(sock, &response);
+    if (rv == -1) {
+	printf("Error receiving response\n");
+    } else {
+	if (response.number > 0) {
+	    printf("Wrong!  The number is higher than %d\n", guess_number);
+	} else if (response.number < 0) {
+	    printf("Wrong!  The number is lower than %d\n", guess_number);
+	} else {
+	    printf("Yay, you won!!\n");
+	}
+    }
 
     // Cleanup
     close(sock);
