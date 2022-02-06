@@ -42,43 +42,48 @@ void init_game(void){
     printf("The number is %d\n", game_state.guess_number);
 }
 
+#define ADDR_STRING_SIZE 64
 void *client_handler(void *data)
 {
+    int rv = 0;
+    char addr_string[ADDR_STRING_SIZE];
     struct client_data *cd = (struct client_data *)data;
+    get_addr_string((struct sockaddr *)&cd->addr,
+		    addr_string, ADDR_STRING_SIZE);
     //printf("Client connected!\n");
 
     // Wait for a message from the client
     struct guess_message msg;
-    recv_guess_message(cd->sock, &msg);
-    // ^^ Not checking return value, this is bad!  What happens if there's an error?
+    while ((rv = recv_guess_message(cd->sock, &msg)) >= 0) {
+	printf("%s guessed:  %d\n", addr_string, msg.number);
 
-    printf("Received guess:  %d\n", msg.number);
+	int response = 0;
 
-    int response = 0;
+	// Modifications to server state start here
+	pthread_mutex_lock(&game_state.lock);
 
-    // Modifications to server state start here
-    pthread_mutex_lock(&game_state.lock);
+	game_state.total_guesses++;
+	if (msg.number < game_state.guess_number) {
+	    response = -1;
+	} else if (msg.number > game_state.guess_number) {
+	    response = 1;
+	} else {
+	    response = 0;
+	    // Client won, so restart
 
-    game_state.total_guesses++;
-    if (msg.number < game_state.guess_number) {
-	response = -1;
-    } else if (msg.number > game_state.guess_number) {
-	response = 1;
-    } else {
-	response = 0;
-	// Client won, so restart
+	    init_game();
+	    // TODO:  This isn't great--the clients don't know the game has restarted!
+	    // What do we need to change about the server (and clients!) to change this?
+	}
 
-	init_game();
-	// TODO:  This isn't great--the clients don't know the game has restarted!
-	// What do we need to change about the server (and clients!) to change this?
+	// Done modifying server state
+	pthread_mutex_unlock(&game_state.lock);
+
+	send_guess_message(cd->sock, MESSAGE_TYPE_RESPONSE, response);
     }
 
-    // Done modifying server state
-    pthread_mutex_unlock(&game_state.lock);
-
-    send_guess_message(cd->sock, MESSAGE_TYPE_RESPONSE, response);
-
-
+    printf("Destroying client.\n");
+    close(cd->sock);
     pthread_exit(NULL);
 }
 
@@ -109,7 +114,7 @@ int main(int argc, char **argv)
     hints.ai_socktype = SOCK_STREAM; // TCP
     hints.ai_flags = AI_PASSIVE;     // Bind to all addresses on the system
 
-    if ((rv = getaddrinfo(NULL, server_port, &hints, &res)) < 0) {
+    if ((rv = getaddrinfo(NULL, server_port, &hints, &res)) != 0) {
 	perror("getaddrinfo");
 	exit(1);
     }
@@ -135,7 +140,7 @@ int main(int argc, char **argv)
     while(1) {
 	int s_client;
 	struct sockaddr_storage client_addr;
-	socklen_t addr_size;
+	socklen_t addr_size = sizeof(struct sockaddr_storage);
 
 	// accept() blocks until a client has connected, and then
 	// returns a file descriptor for a new socket that is used to

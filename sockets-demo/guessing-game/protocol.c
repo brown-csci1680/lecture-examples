@@ -67,7 +67,9 @@ int recv_all(int sock, char *buffer, int total_size)
     while (to_read > 0) {
 	int bytes_read = recv(sock, ptr, to_read, 0);
 	if (bytes_read <= 0) {
-	    perror("recv");
+	    if (bytes_read != 0) {
+		perror("recv");
+	    }
 	    return -1;
 	}
 

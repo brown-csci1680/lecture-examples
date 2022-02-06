@@ -27,21 +27,25 @@ void *get_in_addr(struct sockaddr *sa)
 void print_addr(char *msg, struct sockaddr *sa)
 {
     char addr_str[ADDR_MAX];
+
+    printf("%s%s\n", (msg != NULL) ? msg : "", addr_str);
+}
+
+void get_addr_string(struct sockaddr *sa, char *s, int len)
+{
     switch(sa->sa_family) {
     case AF_INET:
 	inet_ntop(AF_INET, &(((struct sockaddr_in *)sa)->sin_addr),
-		  addr_str, ADDR_MAX);
+		  s, len);
 	break;
 
     case AF_INET6:
 	inet_ntop(AF_INET6, &(((struct sockaddr_in6 *)sa)->sin6_addr),
-		  addr_str, ADDR_MAX);
+		  s, len);
 	break;
 
     default:
-	strncpy(addr_str, "Unknown AF", ADDR_MAX);
+	strncpy(s, "Unknown Address type", len);
 	break;
     }
-
-    printf("%s%s\n", (msg != NULL) ? msg : "", addr_str);
 }

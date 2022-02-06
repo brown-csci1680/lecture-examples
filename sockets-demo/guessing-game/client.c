@@ -15,26 +15,24 @@
 #include "protocol.h"
 #include "utils.h"
 
-#define SERVER_PORT "9999"
 #define MAX_READ_SIZE 1024
+#define LINE_MAX 1024
 
 int main(int argc, char **argv)
 {
     int sock, rv;
     struct addrinfo hints, *res, *servinfo;
 
-    if (argc != 4) {
-	printf("Usage:  client <address> <port> <guess>\n");
+    if (argc != 3) {
+	printf("Usage:  client <address> <port>\n");
 	exit(1);
     }
 
     char *server_address = argv[1];
     char *server_port = argv[2];
-    char *guess_str = argv[3];
-    int32_t guess_number = (int32_t)atoi(guess_str);
 
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_UNSPEC; // IPv4, IPv6 socket
+    hints.ai_family = AF_UNSPEC; // Ask for an IPv4 or IPv6 socket
     hints.ai_socktype = SOCK_STREAM; // TCP socket
 
     // Get an address struct for the server
@@ -75,22 +73,34 @@ int main(int argc, char **argv)
 
     // After this point, our socket has been created!
 
+    char input[LINE_MAX];
+    for(;;) {
+	printf("Enter a quess:  ");
+	char *line = fgets(input, LINE_MAX, stdin);
 
-    // Otherwise, we can send our guess to the server
-    send_guess_message(sock, MESSAGE_TYPE_GUESS, guess_number);
-
-    // TODO next class:  Wait for a reply...
-    struct guess_message response;
-    rv = recv_guess_message(sock, &response);
-    if (rv == -1) {
-	printf("Error receiving response\n");
-    } else {
-	if (response.number > 0) {
-	    printf("Wrong!  The number is higher than %d\n", guess_number);
-	} else if (response.number < 0) {
-	    printf("Wrong!  The number is lower than %d\n", guess_number);
+	if (line == NULL) {
+	    continue;
+	} else if (strncmp("q", input, LINE_MAX) == 0) {
+	    printf("Exiting.\n");
+	    break;
 	} else {
-	    printf("Yay, you won!!\n");
+	    int32_t guess_number = (int32_t)atoi(input);
+	    printf("Sending guess:  %d\n", guess_number);
+
+	    // Otherwise, we can send our guess to the server
+	    send_guess_message(sock, MESSAGE_TYPE_GUESS, guess_number);
+
+	    struct guess_message response;
+
+	    if ((rv = recv_guess_message(sock, &response)) > 0) {
+		if (response.number > 0) {
+		    printf("Wrong!  %d is too high\n", guess_number);
+		} else if (response.number < 0) {
+		    printf("Wrong!  %d is too low\n", guess_number);
+		} else {
+		    printf("Yay, you won!!\n");
+		}
+	    }
 	}
     }
 
