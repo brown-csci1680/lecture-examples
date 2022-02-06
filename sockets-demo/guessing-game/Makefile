@@ -4,14 +4,17 @@ CFLAGS=-O0 -Wall -g
 .PHONY: all clean
 
 BINS=server client
+LDFLAGS=
 all: $(BINS)
 
+%.o: %.c
+	$(CC) $(CFLAGS) $^ -c
 
-client: client.c utils.c protocol.c
-	$(CC) $(CFLAGS) $^ -o $@
+client: client.o utils.o protocol.o
+	$(CC) $(LDFLAGS) $^ -o $@
 
-server: server.c utils.c protocol.c
-	$(CC) $(CFLAGS) $^ -lpthread -o $@
+server: server.o utils.o protocol.o
+	$(CC) $(LDFLAGS) $^ -lpthread -o $@
 
 clean:
 	rm -rf *.o $(BINS)
