@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <string.h>
 
 #include <arpa/inet.h>
 
@@ -73,16 +74,23 @@ int main(int argc, char **argv)
 
     // First, let's just get a sockaddr struct like you're
     // likely to have in the assignment
+    // Here we declare a struct in_addr, which is a struct
+    // that holds an IP address.  When you work with socket calls,
+    // you'll likely have a "struct sockaddr_in", which is a larger
+    // struct that contains a "struct in_addr".  For details, see:
+    // https://beej.us/guide/bgnet/html/#structsockaddrman
+    struct in_addr addr;
+    memset(&addr, 0, sizeof(struct in_addr));
+
     int rv;
-    struct sockaddr_in addr; // IPv4 sockaddr struct
-                             // (be sure to create all of your sockets with AF_INET)
     if ((rv = inet_pton(AF_INET, "127.0.0.1", &addr)) < 0) {
 	perror("inet_pton");
     }
 
     // Now, we can get the address in 32-bit form from the sockaddr struct
     // For details, see:  https://beej.us/guide/bgnet/html/#structsockaddrman
-    uint32_t addr_as_int = addr.sin_addr.s_addr;
+    uint32_t addr_as_int = addr.s_addr;
+    printf("Address in integer form:  %ul\n", addr_as_int);
 
     // Make some element and store it into the hash table
     struct thing t = {5, 5};
