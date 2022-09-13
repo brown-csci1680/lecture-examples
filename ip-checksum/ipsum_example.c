@@ -121,15 +121,15 @@ int send_fake_virtual_ip(int sock,
 
   // Protocol hard-coded to 0 here
   // You will change this based on the message type
-  header.protocol = 0;
+  header.protocol = 200;
 
   // Virtual IP source and destination are hard-coded here
   // You will want to do something different!
-  header.saddr = get_ip_addr("192.168.0.2");
-  header.daddr = get_ip_addr("192.168.0.1");
+  header.saddr = get_ip_addr("10.0.0.14");
+  header.daddr = get_ip_addr("10.0.0.1");
 
-  uint16_t packet_len = header_size + payload_len;
-  header.tot_len = htons(packet_len);
+  uint16_t packet_len = 20 + 5;
+  header.tot_len = packet_len;//htons(packet_len);
   
   uint16_t checksum = ip_sum(&header, header_size);
   header.check = checksum;

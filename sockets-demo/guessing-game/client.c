@@ -32,7 +32,7 @@ int main(int argc, char **argv)
     char *server_port = argv[2];
 
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_UNSPEC; // Ask for an IPv4 or IPv6 socket
+    hints.ai_family = AF_INET; // Ask for an IPv4 or IPv6 socket
     hints.ai_socktype = SOCK_STREAM; // TCP socket
 
     // Get an address struct for the server
@@ -72,7 +72,6 @@ int main(int argc, char **argv)
     }
 
     // After this point, our socket has been created!
-
     char input[LINE_MAX];
     for(;;) {
 	printf("Enter a quess:  ");

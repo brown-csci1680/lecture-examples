@@ -85,7 +85,8 @@ int main(int argc, char **argv)
 	buffer[bytes_received] = '\0';
 
 	char addr_string[ADDR_STRING_SIZE];
-	get_addr_string(&their_addr, addr_string, ADDR_STRING_SIZE);
+	get_addr_string((struct sockaddr *)&their_addr,
+			addr_string, ADDR_STRING_SIZE);
 
 	printf("Received %d bytes from %s:  %s\n",
 	       bytes_received, addr_string, buffer);

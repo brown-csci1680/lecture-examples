@@ -147,6 +147,7 @@ int main(int argc, char **argv)
 	// communicate directly with that client.  When this occurs,
 	// information about the client's IP address is written to
 	// client_addr and addr_size
+
 	if ((s_client = accept(s_listen,
 			       (struct sockaddr*)&client_addr, &addr_size)) < 0) {
 	    perror("accept");

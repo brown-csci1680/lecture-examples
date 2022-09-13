@@ -17,16 +17,18 @@ const (
 	GuessTooLow  = -1
 )
 
-func InitializeGame() GameInfo {
-	return GameInfo{
+func InitializeGame() *GameInfo {
+	return &GameInfo{
 		// Other fields initialized to zero
-		TargetNumber: rand.Int31(),
+		TargetNumber: rand.Int31n(8192),
 	}
 }
 
-func (GameInfo g) DoGuess(n int32) int32 {
+func (g *GameInfo) DoGuess(n int32) int32 {
 	g.GameLock.Lock()
 	defer g.GameLock.Unlock()
+
+	g.TotalGuesses++
 
 	if n < g.TargetNumber {
 		return GuessTooLow
