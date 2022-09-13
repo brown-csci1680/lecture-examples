@@ -11,6 +11,8 @@ const (
 	MessageTypeGuess    = 0
 	MessageTypeResponse = 1
 	MessageTypeNewGame  = 2
+
+	GuessMessageSize = 5
 )
 
 type GuessMessage struct {
@@ -33,6 +35,21 @@ func (m *GuessMessage) Marshal() []byte {
 	return buf.Bytes()
 }
 
-func ReadGuessMessage(conn net.TCPConn) *GuessMessage {
-	return nil
+func ReadGuessMessage(conn net.Conn) GuessMessage {
+	// Our messages are all the same size--but what would happen if they weren't?
+
+	buffer := make([]byte, GuessMessageSize)
+
+	bytesRead, err := conn.Read(buffer)
+
+	log.Printf("Read %d bytes\n", bytesRead)
+
+	if err != nil {
+		log.Fatalln("Read error", err)
+	}
+
+	msg := GuessMessage{MessageType: buffer[0],
+		Number: int32(binary.BigEndian.Uint32(buffer[1:]))}
+
+	return msg
 }
