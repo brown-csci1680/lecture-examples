@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"golang-sockets/pkg/game"
 	"golang-sockets/pkg/protocol"
+	"io"
 	"log"
 	"math/rand"
 	"net"
@@ -41,23 +42,62 @@ func main() {
 			log.Fatalln(err)
 		}
 
-		go handleClient(conn)
+		ci := GameState.NewClient(conn)
+		go handleClient(ci)
 	}
 }
 
-func handleClient(conn net.Conn) {
+func handleClient(ci *game.ClientInfo) {
+	conn := ci.Conn
+	defer conn.Close()
 	log.Printf("New client:  %s\n", conn.RemoteAddr().String())
+
+	socketChan := make(chan protocol.GuessMessage, 1)
+	go func() {
+		for {
+			msg, err := protocol.ReadGuessMessage(conn)
+			if err != nil {
+				if err == io.EOF {
+					log.Printf("Client closed connection")
+				}
+				close(socketChan)
+				return
+			} else {
+				socketChan <- msg
+			}
+
+		}
+	}()
+
 	for {
-		msg := protocol.ReadGuessMessage(conn)
-		log.Printf("Received guess:  %d", msg.Number)
+		select {
+		case msg, ok := <-socketChan:
+			if !ok {
+				log.Printf("Client exited")
+				return
+			} else {
+				log.Printf("Received guess:  %d", msg.Number)
 
-		responseValue := GameState.DoGuess(msg.Number)
+				responseValue := GameState.DoGuess(msg.Number)
 
-		response := protocol.GuessMessage{
-			MessageType: protocol.MessageTypeResponse,
-			Number:      responseValue,
+				if responseValue == game.GuessCorrect {
+					GameState.ResetGame()
+				}
+
+				response := protocol.GuessMessage{
+					MessageType: protocol.MessageTypeResponse,
+					Number:      responseValue,
+				}
+				conn.Write(response.Marshal())
+			}
+
+		case <-ci.GameResetChan:
+			response := protocol.GuessMessage{
+				MessageType: protocol.MessageTypeNewGame,
+				Number:      0,
+			}
+			conn.Write(response.Marshal())
 		}
 
-		conn.Write(response.Marshal())
 	}
 }

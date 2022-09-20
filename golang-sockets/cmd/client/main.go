@@ -2,11 +2,14 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"log"
 	"net"
 	"os"
 	"strconv"
+	"time"
 
 	"golang-sockets/pkg/game"
 	"golang-sockets/pkg/protocol"
@@ -14,7 +17,7 @@ import (
 
 func HandleResponses(conn net.Conn, outChan chan protocol.GuessMessage) {
 	for {
-		msg := protocol.ReadGuessMessage(conn)
+		msg, _ := protocol.ReadGuessMessage(conn)
 		outChan <- msg
 	}
 }
@@ -31,30 +34,36 @@ func PrintResponses(msg protocol.GuessMessage) {
 		default:
 			fmt.Println("Invalid response:  ", msg.Number)
 		}
+	} else if msg.MessageType == protocol.MessageTypeNewGame {
+		fmt.Println("New game!")
+	} else {
+		fmt.Println("Invalid message type:  ", msg.MessageType)
 	}
 }
 
 func main() {
 
 	if len(os.Args) != 3 {
-		log.Fatalf("Usage:  %s <address> <port number>", os.Args[0])
+		log.Fatalf("Usage:  %s <address> <port number>",
+			os.Args[0])
 	}
 
+	// Variables:  if we use :=,
+	// the compiler will automatically determine the type
 	address := os.Args[1]
 	portNumber := os.Args[2]
 
 	addrToUse := fmt.Sprintf("%s:%s", address, portNumber)
 
-	addr, err := net.ResolveTCPAddr("tcp4", addrToUse)
-	if err != nil {
-		log.Fatalln("Error translating address:  ", err)
-	}
-	//conn, err := net.Dial("tcp4", addrToUse)
-	conn, err := net.DialTCP("tcp4", nil, addr)
+	conn, err := net.Dial("tcp4", addrToUse)
 	if err != nil {
 		log.Fatalln("Error connecting:  ", err)
 	}
 	defer conn.Close()
+
+	// Get a net.TCPConn from a net.Conn
+	// (This is called a type assertion)
+	//tcpConn := conn.(*net.TCPConn)
 
 	fmt.Println("Connected!")
 
@@ -80,11 +89,12 @@ func main() {
 	for {
 		select {
 		case newGuess := <-guessChan:
-			msg := &protocol.GuessMessage{
-				MessageType: protocol.MessageTypeGuess,
-				Number:      int32(newGuess),
-			}
-			_, err := conn.Write(msg.Marshal())
+			// msg := &protocol.GuessMessage{
+			// 	MessageType: protocol.MessageTypeGuess,
+			// 	Number:      int32(newGuess),
+			// }
+			// _, err := conn.Write(msg.Marshal())
+			SendGuess(newGuess, conn)
 
 			if err != nil {
 				log.Fatalln("Error writing:  ", err)
@@ -95,4 +105,27 @@ func main() {
 		}
 	}
 
+}
+
+func SendGuess(num int, conn net.Conn) {
+	buf1 := new(bytes.Buffer)
+	err := binary.Write(buf1, binary.BigEndian, uint8(protocol.MessageTypeGuess))
+	if err != nil {
+		log.Fatalln("Marshal failed:  ", err)
+	}
+	_, err = conn.Write(buf1.Bytes())
+	if err != nil {
+		log.Fatalln("Write", err)
+	}
+
+	time.Sleep(1 * time.Second)
+	buf2 := new(bytes.Buffer)
+	err = binary.Write(buf2, binary.BigEndian, int32(num))
+	if err != nil {
+		log.Fatalln("Marshal failed:  ", err)
+	}
+	_, err = conn.Write(buf2.Bytes())
+	if err != nil {
+		log.Fatalln("Write", err)
+	}
 }

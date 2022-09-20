@@ -2,13 +2,22 @@ package game
 
 import (
 	"math/rand"
+	"net"
 	"sync"
 )
+
+type ClientInfo struct {
+	Conn          net.Conn
+	GameResetChan chan bool
+}
 
 type GameInfo struct {
 	GameLock     sync.Mutex
 	TotalGuesses int
 	TargetNumber int32
+
+	ClientListLock sync.Mutex
+	Clients        []*ClientInfo
 }
 
 const (
@@ -21,6 +30,31 @@ func InitializeGame() *GameInfo {
 	return &GameInfo{
 		// Other fields initialized to zero
 		TargetNumber: rand.Int31n(8192),
+	}
+}
+
+func (g *GameInfo) NewClient(conn net.Conn) *ClientInfo {
+	ci := &ClientInfo{
+		Conn:          conn,
+		GameResetChan: make(chan bool, 1),
+	}
+
+	g.ClientListLock.Lock()
+	g.Clients = append(g.Clients, ci)
+	g.ClientListLock.Unlock()
+
+	return ci
+}
+
+func (g *GameInfo) ResetGame() {
+	g.GameLock.Lock()
+	defer g.GameLock.Unlock()
+
+	g.TargetNumber = rand.Int31()
+	g.TotalGuesses = 0
+
+	for _, c := range g.Clients {
+		c.GameResetChan <- true
 	}
 }
 
