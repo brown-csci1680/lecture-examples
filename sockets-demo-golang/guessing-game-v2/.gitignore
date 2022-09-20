@@ -1,0 +1,15 @@
+*~
+\#*#
+*.o
+
+*.pyc
+__pycache__/
+
+pan*
+_spin_nvr.tmp
+*.pml.trail
+
+.DS_Store
+
+server
+client
