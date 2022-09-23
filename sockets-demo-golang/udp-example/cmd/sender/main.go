@@ -31,17 +31,20 @@ func main() {
 	port := os.Args[2]
 	message := os.Args[3]
 
-	// Get an address structure for the IP:port to which we want to send
+	// Turn the address string into a UDPAddr for the connection
 	addrString := fmt.Sprintf("%s:%s", address, port)
 	remoteAddr, err := net.ResolveUDPAddr("udp4", addrString)
 	if err != nil {
 		log.Panicln("Error resolving address:  ", err)
 	}
 
+	fmt.Printf("Sending to %s:%d\n",
+		remoteAddr.IP.String(), remoteAddr.Port)
+
 	// Create a UDPConn to use for sending data
 	// NOTE:  Unlike TCP, this doesn't actually send any packets
-	// to set up a connection!  This just creates the socket
-	// in the OS
+	// to establish a connection!
+	// This just creates the socket in the OS
 	conn, err := net.DialUDP("udp4", nil, remoteAddr)
 	if err != nil {
 		log.Panicln("Dial: ", err)

@@ -63,7 +63,8 @@ func main() {
 		// In Snowcast, the data the listener receives is not
 		// an ASCII string--instead, it's *binary* data from, eg.
 		// an mp3 file.  Instead, you should write it directly
-		// to stdout using something like io.Write.
+		// to stdout using something like os.Stdout.Write(...)
+		//
 		// Why?  Print/Printf/Println will interpret this data
 		// like a string, and therefore might add newlines or
 		// react to other formatting, which will corrupt

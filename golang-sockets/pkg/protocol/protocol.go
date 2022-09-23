@@ -41,6 +41,28 @@ func (m *GuessMessage) Marshal() []byte {
 	return buf.Bytes()
 }
 
+func SendGuess(num int, conn net.Conn) {
+	buf1 := new(bytes.Buffer)
+	err := binary.Write(buf1, binary.BigEndian, uint8(MessageTypeGuess))
+	if err != nil {
+		log.Fatalln("Marshal failed:  ", err)
+	}
+	_, err = conn.Write(buf1.Bytes())
+	if err != nil {
+		log.Fatalln("Write", err)
+	}
+
+	buf2 := new(bytes.Buffer)
+	err = binary.Write(buf2, binary.BigEndian, int32(num))
+	if err != nil {
+		log.Fatalln("Marshal failed:  ", err)
+	}
+	_, err = conn.Write(buf2.Bytes())
+	if err != nil {
+		log.Fatalln("Write", err)
+	}
+}
+
 func RecvAll(conn net.Conn, buffer []byte, n int) (int, error) {
 
 	totalBytesRead := 0
