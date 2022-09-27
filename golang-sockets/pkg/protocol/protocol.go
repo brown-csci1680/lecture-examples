@@ -66,39 +66,33 @@ func SendGuess(num int, conn net.Conn) {
 }
 
 func RecvAll(conn net.Conn, buffer []byte, n int, timeout bool) (int, error) {
-
-	totalBytesRead := 0
-	toRead := n
-
-	for toRead > 0 {
-
-		if timeout {
-			// Let's say we want to optionally have this read timeout if nothing was received
-			// for 5 seconds
-			conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-		}
-		bytesRead, err := conn.Read(buffer[totalBytesRead:])
-		if timeout {
-			// Remove the timeout deadline so that other reads
-			// on this socket aren't affected
-			conn.SetReadDeadline(time.Time{}) // Removes the deadline
-		}
-
-		if err == io.EOF {
-			log.Println("Connection closed")
-			return totalBytesRead, io.EOF
-		} else if os.IsTimeout(err) {
-			// Could handle timeouts differently here, if desired
-			return totalBytesRead, err
-		} else if err != nil {
-			return totalBytesRead, err
-		}
-
-		totalBytesRead += bytesRead
-		toRead -= bytesRead
+	if timeout {
+		// Let's say we want to optionally have this read timeout if nothing was received
+		// within 5 seconds
+		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	}
+	bytesRead, err := io.ReadFull(conn, buffer)
+	if timeout {
+		// Remove the timeout deadline so that other reads
+		// on this socket aren't affected
+		conn.SetReadDeadline(time.Time{})
 	}
 
-	return totalBytesRead, nil
+	// Check for various error conditions
+	// We might want to handle these in some way here; however, it might
+	// be better to pass them up to the caller to handle them in a more graceful way
+	// (ie, like stopping other parts of the application)
+	if err == io.EOF {
+		log.Println("Connection closed")
+		return bytesRead, io.EOF
+	} else if os.IsTimeout(err) {
+		// Could handle timeouts differently here, if desired
+		return bytesRead, err
+	} else if err != nil {
+		return bytesRead, err
+	} else { // No error
+		return bytesRead, nil
+	}
 }
 
 func ReadGuessMessage(conn net.Conn, timeout bool) (GuessMessage, error) {
