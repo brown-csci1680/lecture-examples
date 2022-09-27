@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -46,6 +47,7 @@ func main() {
 	// and then use channels to signal the main loop to act on the data
 	keyboardChan := make(chan int, 1)
 	msgChan := make(chan protocol.GuessMessage, 1)
+	doneChan := make(chan struct{}, 1)
 
 	// Blocking operation:  read from keyboard
 	go func() {
@@ -65,7 +67,7 @@ func main() {
 	}()
 
 	// Start a goroutine to wait for a message from the server
-	go HandleResponses(conn, msgChan)
+	go HandleResponses(conn, msgChan, doneChan)
 
 	for {
 
@@ -75,10 +77,10 @@ func main() {
 			SendGuess(newGuess, conn)
 		case response := <-msgChan: // Input from socket
 			PrintResponses(response)
+		case <-doneChan:
+			fmt.Printf("Server closed connection")
+			return
 		}
-
-		// NOTE:  Both of these cases are missing error handling!
-		// - What happens when the server quits?
 	}
 
 }
@@ -118,11 +120,11 @@ func SendGuessV2(num int, conn net.Conn) {
 	}
 }
 
-func HandleResponses(conn net.Conn, outChan chan protocol.GuessMessage) {
+func HandleResponses(conn net.Conn, outChan chan protocol.GuessMessage, doneChan chan struct{}) {
 	for {
-		msg, err := protocol.ReadGuessMessage(conn)
-		if err != nil {
-
+		msg, err := protocol.ReadGuessMessage(conn, false)
+		if err == io.EOF {
+			doneChan <- struct{}{}
 		}
 		outChan <- msg
 	}

@@ -9,6 +9,8 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -18,7 +20,7 @@ func main() {
 	if len(os.Args) != 2 {
 		log.Fatalf("Usage:  %s <port number>", os.Args[0])
 	}
-	log.Default().SetOutput(io.Discard) //Equivalent of writing logs to /dev/null
+	//log.Default().SetOutput(io.Discard) //Equivalent of writing logs to /dev/null
 
 	portNumber := os.Args[1]
 
@@ -32,6 +34,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	defer conn.Close()
 
 	// Another way to do this:
 	// conn, err := net.Listen("tcp", fmt.Sprintf(":%s", portNumber))
@@ -39,11 +42,25 @@ func main() {
 	// Initialize the guessing game
 	rand.Seed(time.Now().Unix())
 	GameState = game.InitializeGame()
-	log.Println("Target number:  ", GameState.TargetNumber)
+	fmt.Println("Target number is:  ", GameState.TargetNumber)
 
+	// Instead of adding a REPL to our server (like Snowcast)
+	// Catch Ctrl+C and use this to have the server close all connections
+	ctrlCChan := make(chan os.Signal, 1)
+	signal.Notify(ctrlCChan, os.Interrupt, syscall.SIGINT)
+
+	go waitForConnections(conn)
+
+	<-ctrlCChan
+	fmt.Println("Caught Ctrl+C, closing clients...")
+	GameState.TerminateClients()
+	fmt.Println("All clients closed!")
+}
+
+func waitForConnections(listenConn *net.TCPListener) {
 	for {
 		// Wait for new connections (returns a new conn object for each client)
-		conn, err := conn.Accept()
+		conn, err := listenConn.Accept()
 		if err != nil {
 			log.Fatalln("accept:  ", err)
 		}
@@ -56,7 +73,8 @@ func main() {
 
 func handleClient(ci *game.ClientInfo) {
 	conn := ci.Conn
-	defer conn.Close() // Ensure the socket is closed when this goroutine exits
+	defer conn.Close()
+	defer GameState.RemoveClient(ci)
 
 	log.Printf("New client:  %s\n", conn.RemoteAddr().String())
 
@@ -66,8 +84,10 @@ func handleClient(ci *game.ClientInfo) {
 
 	socketChan := make(chan protocol.GuessMessage, 1)
 	go func() {
+		defer conn.Close() // Ensure the socket is closed when this goroutine exits
+
 		for {
-			msg, err := protocol.ReadGuessMessage(conn)
+			msg, err := protocol.ReadGuessMessage(conn, false)
 			if err != nil {
 				if err == io.EOF {
 					log.Printf("Client closed connection")
@@ -88,7 +108,7 @@ func handleClient(ci *game.ClientInfo) {
 				log.Printf("Client exited")
 				return
 			} else {
-				log.Printf("Received guess:  %d", msg.Number)
+				fmt.Printf("Received guess:  %d", msg.Number)
 
 				responseValue := GameState.DoGuess(msg.Number)
 
@@ -109,7 +129,10 @@ func handleClient(ci *game.ClientInfo) {
 				Number:      0,
 			}
 			conn.Write(response.Marshal())
-		}
 
+		case <-ci.ServerCloseChan:
+			log.Printf("Server closing, removing client")
+			return
+		}
 	}
 }

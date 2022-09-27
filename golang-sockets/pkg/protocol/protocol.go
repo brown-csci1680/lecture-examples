@@ -6,6 +6,8 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
+	"time"
 )
 
 // A struct to represent our messages
@@ -63,18 +65,33 @@ func SendGuess(num int, conn net.Conn) {
 	}
 }
 
-func RecvAll(conn net.Conn, buffer []byte, n int) (int, error) {
+func RecvAll(conn net.Conn, buffer []byte, n int, timeout bool) (int, error) {
 
 	totalBytesRead := 0
 	toRead := n
 
 	for toRead > 0 {
+
+		if timeout {
+			// Let's say we want to optionally have this read timeout if nothing was received
+			// for 5 seconds
+			conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+		}
 		bytesRead, err := conn.Read(buffer[totalBytesRead:])
+		if timeout {
+			// Remove the timeout deadline so that other reads
+			// on this socket aren't affected
+			conn.SetReadDeadline(time.Time{}) // Removes the deadline
+		}
+
 		if err == io.EOF {
 			log.Println("Connection closed")
 			return totalBytesRead, io.EOF
+		} else if os.IsTimeout(err) {
+			// Could handle timeouts differently here, if desired
+			return totalBytesRead, err
 		} else if err != nil {
-			log.Fatalln("Write failed:  ", err)
+			return totalBytesRead, err
 		}
 
 		totalBytesRead += bytesRead
@@ -84,13 +101,13 @@ func RecvAll(conn net.Conn, buffer []byte, n int) (int, error) {
 	return totalBytesRead, nil
 }
 
-func ReadGuessMessage(conn net.Conn) (GuessMessage, error) {
+func ReadGuessMessage(conn net.Conn, timeout bool) (GuessMessage, error) {
 	// Our messages are all the same size--but what would happen if they weren't?
 
 	buffer := make([]byte, GuessMessageSize)
 
 	//bytesRead, err := conn.Read(buffer)
-	bytesRead, err := RecvAll(conn, buffer, GuessMessageSize)
+	bytesRead, err := RecvAll(conn, buffer, GuessMessageSize, timeout)
 
 	log.Printf("Read %d bytes\n", bytesRead)
 
@@ -98,7 +115,7 @@ func ReadGuessMessage(conn net.Conn) (GuessMessage, error) {
 		log.Println("Connection closed")
 		return GuessMessage{}, io.EOF
 	} else if err != nil {
-		log.Fatalln("Read error", err)
+		return GuessMessage{}, err
 	}
 
 	msg := GuessMessage{MessageType: buffer[0],
