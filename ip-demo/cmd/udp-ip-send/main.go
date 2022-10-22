@@ -113,11 +113,11 @@ func ComputeChecksum(b []byte) uint16 {
 	checksum := header.Checksum(b, 0)
 
 	// Invert the checksum value.  Why is this necessary?
-	// The checksum function in the library we're using seems
-	// to have been built to plug into some other software that expects
-	// to receive the complement of this value.
-	// The reasons for this are unclear to me at the moment, but for now
-	// take my word for it.  =)
+	// This function returns the inverse of the checksum
+	// on an initial computation.  While this may seem weird,
+	// it makes it easier to use this same function
+	// to validate the checksum on the receiving side.
+	// See ValidateChecksum in the receiver file for details.
 	checksumInv := checksum ^ 0xffff
 
 	return checksumInv
