@@ -9,7 +9,7 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${workspaceFolder}/cmd/udp-ip-send",
+            "program": "${workspaceFolder}/cmd/tcp-ip-send",
             "console": "integratedTerminal",
             "args": ["5000", "127.0.0.1", "5001", "aaaaaaaaaaaa"]
         },
@@ -18,7 +18,7 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${workspaceFolder}/cmd/udp-ip-recv",
+            "program": "${workspaceFolder}/cmd/tcp-ip-recv",
             "console": "integratedTerminal",
             "args": ["5001"]
         },

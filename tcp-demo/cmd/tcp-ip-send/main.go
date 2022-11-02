@@ -18,6 +18,7 @@ package main
 
 import (
 	"fmt"
+	"ip-demo/pkg/iptcp_utils"
 	"log"
 	"net"
 	"os"
@@ -25,6 +26,114 @@ import (
 	"github.com/google/netstack/tcpip/header"
 	"golang.org/x/net/ipv4"
 )
+
+// Send a TCP packet inside a virtual IP packet on our IP network
+//
+// NOTE: This is just an example function which hard-codes all of the values in
+// the virtual IP header.  In the project, you should have a function like
+// send_ip(...), but it will look VERY different from this!!!  For example, you
+// shouldn't be passing in the UDP conn and addr as arguments.  Instead, you may
+// want to specify the virtual source/dest address, or an interface name
+func SendFakeTCPPacket(conn *net.UDPConn, linkLayerRemoteAddr *net.UDPAddr,
+	sourceIp net.IP, destIp net.IP,
+	payload []byte) (int, error) {
+
+	// Start filling in the TCP header
+	// WARNING:  This example uses hard-coded values for the port numbers, seq
+	// and ack numbers, flags, and window size--you will want to do something
+	// VERY different in your project!
+	tcpHdr := header.TCPFields{
+		SrcPort:       12345,
+		DstPort:       80,
+		SeqNum:        1,
+		AckNum:        1,
+		DataOffset:    20,
+		Flags:         header.TCPFlagSyn | header.TCPFlagAck,
+		WindowSize:    65535,
+		Checksum:      0,
+		UrgentPointer: 0,
+	}
+
+	checksum := iptcp_utils.ComputeTCPChecksum(&tcpHdr, sourceIp, destIp, payload)
+	tcpHdr.Checksum = checksum
+
+	// Serialize the TCP header
+	tcpHeaderBytes := make(header.TCP, iptcp_utils.TcpHeaderLen)
+	tcpHeaderBytes.Encode(&tcpHdr)
+
+	// Combine the TCP header + payload into one byte array, which
+	// becomes the payload of the IP packet
+	ipPacketPayload := make([]byte, 0, len(tcpHeaderBytes)+len(payload))
+	ipPacketPayload = append(ipPacketPayload, tcpHeaderBytes...)
+	ipPacketPayload = append(ipPacketPayload, []byte(payload)...)
+
+	bytesWritten, err := SendFakeIPPacket(conn, linkLayerRemoteAddr,
+		sourceIp, destIp, int(iptcp_utils.IpProtoTcp),
+		ipPacketPayload)
+
+	return bytesWritten, err
+}
+
+// Send an IP packet on our virtual network
+//
+// NOTE: This is just an example function which hard-codes all of the values in
+// the virtual IP header.  In the project, you should have a function like
+// send_ip(...), but it will look VERY different from this!!!  For example, you
+// shouldn't be passing in the UDP conn and addr as arguments.  Instead, you may
+// want to specify the virtual source/dest address, or an interface name
+func SendFakeIPPacket(conn *net.UDPConn, linkLayerRemoteAddr *net.UDPAddr,
+	sourceIp net.IP, destIp net.IP,
+	protocol int, payload []byte) (int, error) {
+
+	// FIll in the IP header
+	// NOTE:  This example uses hard-coded values for the
+	// source, destination, and protocol--you will need to
+	// do something different!
+	hdr := ipv4.Header{
+		Version:  4,
+		Len:      20, // Header length is always 20 when no IP options
+		TOS:      0,
+		TotalLen: ipv4.HeaderLen + len(payload),
+		ID:       0,
+		Flags:    0,
+		FragOff:  0,
+		TTL:      32,
+		Protocol: protocol,
+		Checksum: 0, // Should be 0 until checksum is computed
+		Src:      sourceIp,
+		Dst:      destIp,
+		Options:  []byte{},
+	}
+
+	// Assemble the IP header into a byte array
+	ipHeaderBytes, err := hdr.Marshal()
+	if err != nil {
+		return 0, err
+	}
+
+	// Compute the IP checksum
+	// Cast back to an int, which is what the Header structure expects
+	hdr.Checksum = int(iptcp_utils.ComputeIPChecksum(ipHeaderBytes))
+
+	ipHeaderBytes, err = hdr.Marshal()
+	if err != nil {
+		return 0, err
+	}
+
+	// Assemble everything into a single byte array
+	bytesToSend := make([]byte, 0, len(ipHeaderBytes)+len(payload))
+	bytesToSend = append(bytesToSend, ipHeaderBytes...)
+	bytesToSend = append(bytesToSend, payload...)
+
+	// Send the message to the "link-layer" addr:port on UDP
+	bytesWritten, err := conn.WriteToUDP(bytesToSend, linkLayerRemoteAddr)
+	if err != nil {
+		return 0, err
+	}
+
+	return bytesWritten, nil
+
+}
 
 func main() {
 	if len(os.Args) != 5 {
@@ -61,87 +170,12 @@ func main() {
 		log.Panicln("Dial: ", err)
 	}
 
-	// Start filling in the IP header
-	// NOTE:  This example uses hard-coded values for the
-	// source, destination, and protocol--you will need to
-	// do something different!
-	hdr := ipv4.Header{
-		Version:  4,
-		Len:      20, // Header length is always 20 when no IP options
-		TOS:      0,
-		TotalLen: ipv4.HeaderLen + header.TCPMinimumSize + len(message),
-		ID:       0,
-		Flags:    0,
-		FragOff:  0,
-		TTL:      32,
-		Protocol: int(header.TCPProtocolNumber),
-		Checksum: 0, // Should be 0 until checksum is computed
-		Src:      net.ParseIP("192.168.0.1"),
-		Dst:      net.ParseIP("192.168.0.2"),
-		Options:  []byte{},
-	}
+	fakeSourceIp := net.ParseIP("192.168.0.1")
+	fakeDestIp := net.ParseIP("192.168.0.2")
 
-	// Start filling in the TCP header
-	// NOTE:  This example uses hard-coded values for the
-	// source, destination, and protocol--you will need to
-	// do something VERY different!
-	tcpHdr := header.TCPFields{
-		SrcPort:       12345,
-		DstPort:       80,
-		SeqNum:        1,
-		AckNum:        1,
-		DataOffset:    20,
-		Flags:         header.TCPFlagSyn | header.TCPFlagAck,
-		WindowSize:    65535,
-		Checksum:      0,
-		UrgentPointer: 0,
-	}
-
-	// Assemble the IP header into a byte array
-	ipHeaderBytes, err := hdr.Marshal()
+	bytesWritten, err := SendFakeTCPPacket(conn, remoteAddr, fakeSourceIp, fakeDestIp, []byte(message))
 	if err != nil {
-		log.Fatalln("Error marshalling IP header:  ", err)
-	}
-
-	// Compute the IP checksum
-	// Cast back to an int, which is what the Header structure expects
-	hdr.Checksum = int(ComputeChecksum(ipHeaderBytes))
-
-	ipHeaderBytes, err = hdr.Marshal()
-	if err != nil {
-		log.Fatalln("Error marshalling IP header:  ", err)
-	}
-
-	// Serialize the TCP header
-	// NOTE:  This example skips the TCP checksum for now!
-	tcpBytes := make(header.TCP, header.TCPMinimumSize)
-	tcpBytes.Encode(&tcpHdr)
-
-	// Assemble everything into a single byte array
-	bytesToSend := make([]byte, 0, len(ipHeaderBytes)+len(message)+len(tcpBytes))
-	bytesToSend = append(bytesToSend, ipHeaderBytes...)
-	bytesToSend = append(bytesToSend, tcpBytes...)
-	bytesToSend = append(bytesToSend, []byte(message)...)
-
-	// Send the message to the "link-layer" addr:port on UDP
-	bytesWritten, err := conn.WriteToUDP(bytesToSend, remoteAddr)
-	if err != nil {
-		log.Panicln("Error writing to socket: ", err)
+		log.Fatalln("Error sending packet:  ", err)
 	}
 	fmt.Printf("Sent %d bytes\n", bytesWritten)
-}
-
-// Compute the checksum using the netstack package
-func ComputeChecksum(b []byte) uint16 {
-	checksum := header.Checksum(b, 0)
-
-	// Invert the checksum value.  Why is this necessary?
-	// This function returns the inverse of the checksum
-	// on an initial computation.  While this may seem weird,
-	// it makes it easier to use this same function
-	// to validate the checksum on the receiving side.
-	// See ValidateChecksum in the receiver file for details.
-	checksumInv := checksum ^ 0xffff
-
-	return checksumInv
 }

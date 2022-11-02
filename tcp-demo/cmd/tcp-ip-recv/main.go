@@ -8,6 +8,7 @@ package main
 
 import (
 	"fmt"
+	"ip-demo/pkg/iptcp_utils"
 	"log"
 	"net"
 	"os"
@@ -53,6 +54,7 @@ func main() {
 			log.Panicln("Error reading from UDP socket ", err)
 		}
 
+		// ***************** PARSE IP HEADER *****************************
 		// Marshal the received byte array into a UDP header
 		// NOTE:  This does not validate the checksum or check any fields
 		// (You'll need to do this part yourself)
@@ -63,71 +65,64 @@ func main() {
 			continue
 		}
 
-		headerSize := hdr.Len
+		ipHeaderSize := hdr.Len
 
-		// Validate the checksum.
-		headerBytes := buffer[:headerSize]
+		// Validate the IP checksum
+		ipHeaderBytes := buffer[:ipHeaderSize]
 
-		checksumFromHeader := uint16(hdr.Checksum)
-		computedChecksum := ValidateChecksum(headerBytes, checksumFromHeader)
-		var checksumState string
-		if computedChecksum == checksumFromHeader {
-			checksumState = "OK"
+		ipChecksumFromHeader := uint16(hdr.Checksum)
+		ipComputedChecksum := iptcp_utils.ValidateIPChecksum(ipHeaderBytes,
+			ipChecksumFromHeader)
+
+		var ipChecksumState string
+		if ipComputedChecksum == ipChecksumFromHeader {
+			ipChecksumState = "OK"
 		} else {
-			checksumState = "FAIL"
+			ipChecksumState = "FAIL"
 		}
 
+		// This is just a demo, so we should only be seeing TCP packets,
+		// drop everything else
 		if hdr.Protocol != int(header.TCPProtocolNumber) {
 			fmt.Println("Packet is not a TCP packet, skipping")
 			continue
 		}
 
+		// ******************** PARSE TCP HEADER ************************
 		// Next, get the TCP header
-		// NOTE:  This does NOT validate the TCP checksum
-		tcpHeaderAndData := buffer[headerSize:]
-		tcpHdr := ParseTCPHeader(tcpHeaderAndData)
 
-		// Finally, get the message
-		message := tcpHeaderAndData[tcpHdr.DataOffset:]
+		// **** IMPORTANT ****:  The total length of the data is included
+		// in the **IP header**.  This is very important because
+		// ReadFromUDP reads into a buffer of size 1400, but the actual
+		// message may be smaller!
+		// Therefore, to get the correct-sized payload, we need
+		// to slice it out of buffer
+		tcpHeaderAndData := buffer[ipHeaderSize:hdr.TotalLen]
 
+		// Parse the TCP header into a struct
+		tcpHdr := iptcp_utils.ParseTCPHeader(tcpHeaderAndData)
+
+		// Get the payload
+		tcpPayload := tcpHeaderAndData[tcpHdr.DataOffset:]
+
+		// Now that we have all the pieces, we can verify the TCP checksum
+		// In general, the checksum function expects the checksum field to be
+		// set to 0, which allows us to verify it by checking against the
+		// value sent in the header.
+		// An alternative is to *not* clear this value and then compare
+		// tcpComputedChecksum == 0 (for details, see EdStem #208)
+		tcpChecksumFromHeader := tcpHdr.Checksum // Save original
+		tcpHdr.Checksum = 0
+		tcpComputedChecksum := iptcp_utils.ComputeTCPChecksum(&tcpHdr, hdr.Src, hdr.Dst, tcpPayload)
+
+		var tcpChecksumState string
+		if tcpComputedChecksum == tcpChecksumFromHeader {
+			tcpChecksumState = "OK"
+		} else {
+			tcpChecksumState = "FAIL"
+		}
 		// Finally, print everything out
-		fmt.Printf("Received IP packet from %s\nIP Header:  %v\nIP Checksum:  %s\nTCP header:  %+v\nMessage:  %s\n",
-			sourceAddr.String(), hdr, checksumState, tcpHdr, string(message))
+		fmt.Printf("Received TCP packet from %s\nIP Header:  %v\nIP Checksum:  %s\nTCP header:  %+v\nTCP Checksum:  %s\nPayload (%d bytes):  %s\n",
+			sourceAddr.String(), hdr, ipChecksumState, tcpHdr, tcpChecksumState, len(tcpPayload), string(tcpPayload))
 	}
-}
-
-// Build a TCPFields struct from the TCP byte array
-// NOTE: the netstack package might have other options for parsing the header
-// that you may like better--this example is most similar to our other class examples.
-// Your mileage may vary!
-func ParseTCPHeader(b []byte) header.TCPFields {
-	td := header.TCP(b)
-	return header.TCPFields{
-		SrcPort:    td.SourcePort(),
-		DstPort:    td.DestinationPort(),
-		SeqNum:     td.SequenceNumber(),
-		AckNum:     td.AckNumber(),
-		DataOffset: td.DataOffset(),
-		Flags:      td.Flags(),
-		WindowSize: td.WindowSize(),
-		Checksum:   td.Checksum(),
-	}
-}
-
-// Validate the checksum using the netstack package
-// Here, we provide both the byte array for the header AND
-// the initial checksum value that was stored in the header
-//
-// "Why don't we need to set the checksum value to 0 first?"
-//
-// Normally, the checksum is computed with the checksum field
-// of the header set to 0.  This library creatively avoids
-// this step by instead subtracting the initial value from
-// the computed checksum.
-// If you use a different language or checksum function, you may
-// need to handle this differently.
-func ValidateChecksum(b []byte, fromHeader uint16) uint16 {
-	checksum := header.Checksum(b, fromHeader)
-
-	return checksum
 }
