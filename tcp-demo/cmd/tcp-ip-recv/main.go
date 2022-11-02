@@ -122,7 +122,7 @@ func main() {
 			tcpChecksumState = "FAIL"
 		}
 		// Finally, print everything out
-		fmt.Printf("Received TCP packet from %s\nIP Header:  %v\nIP Checksum:  %s\nTCP header:  %+v\nTCP Checksum:  %s\nPayload (%d bytes):  %s\n",
-			sourceAddr.String(), hdr, ipChecksumState, tcpHdr, tcpChecksumState, len(tcpPayload), string(tcpPayload))
+		fmt.Printf("Received TCP packet from %s\nIP Header:  %v\nIP Checksum:  %s\nTCP header:  %+v\nFlags:  %s\nTCP Checksum:  %s\nPayload (%d bytes):  %s\n",
+			sourceAddr.String(), hdr, ipChecksumState, tcpHdr, iptcp_utils.TCPFlagsAsString(tcpHdr.Flags), tcpChecksumState, len(tcpPayload), string(tcpPayload))
 	}
 }

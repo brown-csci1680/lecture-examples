@@ -2,7 +2,9 @@ package iptcp_utils
 
 import (
 	"encoding/binary"
+	"fmt"
 	"net"
+	"strings"
 
 	"github.com/google/netstack/tcpip/header"
 	"golang.org/x/net/ipv4"
@@ -57,9 +59,13 @@ func ComputeTCPChecksum(tcpHdr *header.TCPFields,
 	totalLength := TcpHeaderLen + len(payload)
 	binary.BigEndian.PutUint16(pseudoHeaderBytes[10:12], uint16(totalLength))
 
+	// Turn the TcpFields struct into a byte array
 	headerBytes := header.TCP(make([]byte, TcpHeaderLen))
 	headerBytes.Encode(tcpHdr)
 
+	// Compute the checksum for each individual part and combine To combine the
+	// checksums, we leverage the "initial value" argument of the netstack's
+	// checksum package to carry over the value from the previous part
 	pseudoHeaderChecksum := header.Checksum(pseudoHeaderBytes, 0)
 	headerChecksum := header.Checksum(headerBytes, pseudoHeaderChecksum)
 	fullChecksum := header.Checksum(payload, headerChecksum)
@@ -99,4 +105,35 @@ func ValidateIPChecksum(b []byte, fromHeader uint16) uint16 {
 	checksum := header.Checksum(b, fromHeader)
 
 	return checksum
+}
+
+// Pretty-print TCP flags value as a string
+func TCPFlagsAsString(flags uint8) string {
+	strMap := map[uint8]string{
+		header.TCPFlagAck: "ACK",
+		header.TCPFlagFin: "FIN",
+		header.TCPFlagPsh: "PSH",
+		header.TCPFlagRst: "RST",
+		header.TCPFlagSyn: "SYN",
+		header.TCPFlagUrg: "URG",
+	}
+
+	matches := make([]string, 0)
+
+	for b, str := range strMap {
+		if (b & flags) == b {
+			matches = append(matches, str)
+		}
+	}
+
+	ret := strings.Join(matches, "+")
+
+	return ret
+}
+
+// Pretty-print a TCP header (with pretty-printed flags)
+// Otherwise, using %+v in format strings is a good enough view in most cases
+func TCPFieldsToString(hdr *header.TCPFields) string {
+	return fmt.Sprintf("{SrcPort:%d DstPort:%d, SeqNum:%d AckNum:%d DataOffset:%d Flags:%s WindowSize:%d Checksum:%x UrgentPointer:%d}",
+		hdr.SrcPort, hdr.DstPort, hdr.SeqNum, hdr.AckNum, hdr.DataOffset, TCPFlagsAsString(hdr.Flags), hdr.WindowSize, hdr.Checksum, hdr.UrgentPointer)
 }
