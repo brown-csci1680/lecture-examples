@@ -73,11 +73,11 @@ func main() {
 		// the value stored in the header.
 		// See ValudateChecksum for details.
 		headerBytes := buffer[:headerSize]
-		checksumFromHeader := uint16(hdr.Checksum)
-		computedChecksum := ValidateChecksum(headerBytes, checksumFromHeader)
-
+		//checksumFromHeader := uint16(hdr.Checksum)
+		//computedChecksum := ValidateChecksum(headerBytes, checksumFromHeader)
+		computedChecksum := header.Checksum(headerBytes, 0)
 		var checksumState string
-		if computedChecksum == checksumFromHeader {
+		if computedChecksum == 0xffff {
 			checksumState = "OK"
 		} else {
 			checksumState = "FAIL"

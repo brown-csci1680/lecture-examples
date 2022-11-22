@@ -6,8 +6,9 @@ import (
 	"net"
 	"strings"
 
-	"github.com/google/netstack/tcpip/header"
 	"golang.org/x/net/ipv4"
+	"gvisor.dev/gvisor/pkg/tcpip/checksum"
+	"gvisor.dev/gvisor/pkg/tcpip/header"
 )
 
 const (
@@ -85,9 +86,9 @@ func ComputeTCPChecksum(tcpHdr *header.TCPFields,
 	// Compute the checksum for each individual part and combine To combine the
 	// checksums, we leverage the "initial value" argument of the netstack's
 	// checksum package to carry over the value from the previous part
-	pseudoHeaderChecksum := header.Checksum(pseudoHeaderBytes, 0)
-	headerChecksum := header.Checksum(headerBytes, pseudoHeaderChecksum)
-	fullChecksum := header.Checksum(payload, headerChecksum)
+	pseudoHeaderChecksum := checksum.Checksum(pseudoHeaderBytes, 0)
+	headerChecksum := checksum.Checksum(headerBytes, pseudoHeaderChecksum)
+	fullChecksum := checksum.Checksum(payload, headerChecksum)
 
 	// Return the inverse of the computed value,
 	// which seems to be the convention of the checksum algorithm
@@ -97,7 +98,7 @@ func ComputeTCPChecksum(tcpHdr *header.TCPFields,
 
 // Compute the checksum using the netstack package
 func ComputeIPChecksum(b []byte) uint16 {
-	checksum := header.Checksum(b, 0)
+	checksum := checksum.Checksum(b, 0)
 
 	// Invert the checksum value.  Why is this necessary?
 	// This function returns the inverse of the checksum
@@ -121,14 +122,14 @@ func ComputeIPChecksum(b []byte) uint16 {
 // initial value from the computed checksum.  If you use a different language or
 // checksum function, you may need to handle this differently.
 func ValidateIPChecksum(b []byte, fromHeader uint16) uint16 {
-	checksum := header.Checksum(b, fromHeader)
+	checksum := checksum.Checksum(b, fromHeader)
 
 	return checksum
 }
 
 // Pretty-print TCP flags value as a string
-func TCPFlagsAsString(flags uint8) string {
-	strMap := map[uint8]string{
+func TCPFlagsAsString(flags header.TCPFlags) string {
+	strMap := map[header.TCPFlags]string{
 		header.TCPFlagAck: "ACK",
 		header.TCPFlagFin: "FIN",
 		header.TCPFlagPsh: "PSH",
@@ -140,7 +141,7 @@ func TCPFlagsAsString(flags uint8) string {
 	matches := make([]string, 0)
 
 	for b, str := range strMap {
-		if (b & flags) == b {
+		if flags.Contains(b) {
 			matches = append(matches, str)
 		}
 	}

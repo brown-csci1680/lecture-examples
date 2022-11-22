@@ -13,8 +13,8 @@ import (
 	"net"
 	"os"
 
-	"github.com/google/netstack/tcpip/header"
 	"golang.org/x/net/ipv4"
+	"gvisor.dev/gvisor/pkg/tcpip/header"
 )
 
 const (
