@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"os"
@@ -54,18 +53,20 @@ func main() {
 }
 
 func handleClient(ci *ClientInfo) {
-	fmt.Printf("Starting client handler for %s", ci.Conn.RemoteAddr())
+	log.Printf("%s:  Starting client handler\n", ci.Conn.RemoteAddr())
 	for {
+		// Try to read a guess message from the socket
+		msg, err := protocol.ReadGuessMessage(ci.Conn)
+		// Original version:
 		//buffer := make([]byte, MaxMessageSize)
 		//b, err := conn.Read(buffer)
-		msg, err := protocol.ReadGuessMessage(ci.Conn)
-		//time.Sleep(5 * time.Second) // Be annoying
 
 		if err != nil {
-			// BAD!  Don't want to crash server something goes wrong with one client
+			// Problem!  Don't want to crash server something goes wrong with one client
+			// This version writes an error to the log and then ends the thread
 			// TODO:  Should handle graceful disconnect (err == io.EOF) vs. an actual error
-			// Can also do other stuff with logging (like turn on logs with flags)
-			log.Println("Error with client", err)
+			// Can also do other useful stuff with logging (like turn on logs with flags)
+			log.Printf("%s:  Read failed with error:  %s\n", ci.Conn.RemoteAddr(), err)
 			break
 		}
 
@@ -86,9 +87,9 @@ func handleClient(ci *ClientInfo) {
 			}
 			ci.Conn.Write(responseBytes)
 		case protocol.MessageTypeResponse:
-			// Invalid!
+			// Invalid!  Client shouldn't send a response
 		default:
-			// Also invalid!
+			// Other message types are also invalid!
 		}
 
 		// toPrint := string(buffer)

@@ -16,17 +16,10 @@ const (
 	MessageTypeGuess    = 0
 	MessageTypeResponse = 1
 
-	AnswerTooLow  = -1
-	AnswerCorrect = 0
-	AnswerTooHigh = 1
-
 	GuessMessageSize = 5
 )
 
-// So the idea is, when we want to send a message, we want to send/recv these structs
-// You're going to learn to do this once, and then never again
-
-// Want to do it this way, just so you see it
+// When we want to send a message, we want to send/recv these structs
 // Marshal struct into an array of bytes
 // (m *GuessMessage) says "this is a function that operates on a GuessMessage called m"
 func (m *GuessMessage) Marshal() ([]byte, error) {
@@ -52,9 +45,13 @@ func ReadGuessMessage(conn net.Conn) (*GuessMessage, error) {
 	// All messages are how big?
 	buffer := make([]byte, GuessMessageSize)
 
-	_, err := conn.Read(buffer) // WARNING!
+	// Read from the socket
+	// WARNING WARNING WARNING:  What happens if we receive fewer than 5 bytes??
+	// We'll fix this later--see full version for details now.
+	_, err := conn.Read(buffer) // ignored parameter is number of bytes received
 	if err != nil {
-		return nil, err // TODO
+		// TODO:  Graceful error handling when client disconnects normally
+		return nil, err
 	}
 
 	msg := &GuessMessage{

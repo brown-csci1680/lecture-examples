@@ -23,7 +23,7 @@ func main() {
 		panic(err)
 	}
 
-	// Read a line from stdin
+	// Continuously read lines from stdin to send as guesses
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -34,11 +34,13 @@ func main() {
 			continue
 		}
 
+		// Build the guess message
 		guessMsg := protocol.GuessMessage{
 			MessageType: protocol.MessageTypeGuess,
 			Number:      int32(guess),
 		}
 
+		// Turn it into a byte array
 		toSend, err := guessMsg.Marshal()
 		if err != nil {
 			panic(err)

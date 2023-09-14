@@ -3,11 +3,20 @@ package game
 import (
 	"fmt"
 	"math/rand"
+	"sync"
 )
 
+// Warning:  fields here are shared data since they're
+// accessed by multiple clients!  Can protect with a mutex.
+//
+// Note:  struct fields starting with lower-case letters are private
+// This might be useful here since we want to make sure other parts
+// of the code can't read the fields without the mutex
 type GameInfo struct {
-	TargetNumber int32
-	TotalGuesses int
+	targetNumber int32
+	totalGuesses int
+
+	gameLock sync.Mutex
 }
 
 const (
@@ -18,27 +27,33 @@ const (
 
 func InitializeGame() *GameInfo {
 	gi := &GameInfo{
-		// Other fields initialized to zero
-		TargetNumber: rand.Int31n(8192),
+		// Fields initialized to zero if not specified
 	}
-	fmt.Println("Target is", gi.TargetNumber)
+	gi.resetGame()
+
 	return gi
 }
 
-func (g *GameInfo) resetGame() {
-	g.TargetNumber = rand.Int31n(8192)
-	g.TotalGuesses = 0
-}
-
 func (g *GameInfo) DoGuess(n int32) int32 {
-	g.TotalGuesses++
+	g.gameLock.Lock()
+	defer g.gameLock.Unlock() // Defer runs this when the function returns
 
-	if n < g.TargetNumber {
+	g.totalGuesses++
+
+	if n < g.targetNumber {
 		return GuessTooLow
-	} else if n > g.TargetNumber {
+	} else if n > g.targetNumber {
 		return GuessTooHigh
 	} else {
 		g.resetGame()
 		return GuessCorrect
 	}
+}
+
+func (g *GameInfo) resetGame() {
+	// Should only be called when lock is held
+	g.targetNumber = rand.Int31n(8192)
+	g.totalGuesses = 0
+
+	fmt.Println("Target number is:  ", g.targetNumber)
 }
