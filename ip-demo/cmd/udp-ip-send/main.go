@@ -20,10 +20,11 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/netip"
 	"os"
 
+	ipv4header "github.com/brown-csci1680/iptcp-headers"
 	"github.com/google/netstack/tcpip/header"
-	"golang.org/x/net/ipv4"
 )
 
 func main() {
@@ -65,19 +66,19 @@ func main() {
 	// NOTE:  This example uses hard-coded values for the
 	// source, destination, and protocol--you will need to
 	// do something different!
-	hdr := ipv4.Header{
+	hdr := ipv4header.IPv4Header{
 		Version:  4,
 		Len:      20, // Header length is always 20 when no IP options
 		TOS:      0,
-		TotalLen: ipv4.HeaderLen + len(message),
+		TotalLen: ipv4header.HeaderLen + len(message),
 		ID:       0,
 		Flags:    0,
 		FragOff:  0,
 		TTL:      32,
 		Protocol: 0,
 		Checksum: 0, // Should be 0 until checksum is computed
-		Src:      net.ParseIP("192.168.0.1"),
-		Dst:      net.ParseIP("192.168.0.2"),
+		Src:      netip.MustParseAddr("192.168.0.1"),
+		Dst:      netip.MustParseAddr("192.168.0.2"),
 		Options:  []byte{},
 	}
 

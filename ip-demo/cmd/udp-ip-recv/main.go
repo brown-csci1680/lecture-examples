@@ -12,8 +12,8 @@ import (
 	"net"
 	"os"
 
+	ipv4header "github.com/brown-csci1680/iptcp-headers"
 	"github.com/google/netstack/tcpip/header"
-	"golang.org/x/net/ipv4"
 )
 
 const (
@@ -56,7 +56,7 @@ func main() {
 		// Marshal the received byte array into a UDP header
 		// NOTE:  This does not validate the checksum or check any fields
 		// (You'll need to do this part yourself)
-		hdr, err := ipv4.ParseHeader(buffer)
+		hdr, err := ipv4header.ParseHeader(buffer)
 
 		if err != nil {
 			// What should you if the message fails to parse?
