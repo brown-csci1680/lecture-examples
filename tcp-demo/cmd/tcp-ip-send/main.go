@@ -18,13 +18,15 @@ package main
 
 import (
 	"fmt"
-	"ip-demo/pkg/iptcp_utils"
 	"log"
 	"net"
+	"net/netip"
 	"os"
+	"tcp-demo/pkg/iptcp_utils"
 
+	ipv4header "github.com/brown-csci1680/iptcp-headers"
 	"github.com/google/netstack/tcpip/header"
-	"golang.org/x/net/ipv4"
+	//"golang.org/x/net/ipv4"
 )
 
 // Send a TCP packet inside a virtual IP packet on our IP network
@@ -35,7 +37,7 @@ import (
 // shouldn't be passing in the UDP conn and addr as arguments.  Instead, you may
 // want to specify the virtual source/dest address, or an interface name
 func SendFakeTCPPacket(conn *net.UDPConn, linkLayerRemoteAddr *net.UDPAddr,
-	sourceIp net.IP, destIp net.IP,
+	sourceIp netip.Addr, destIp netip.Addr,
 	payload []byte) (int, error) {
 
 	// Start filling in the TCP header
@@ -82,18 +84,18 @@ func SendFakeTCPPacket(conn *net.UDPConn, linkLayerRemoteAddr *net.UDPAddr,
 // shouldn't be passing in the UDP conn and addr as arguments.  Instead, you may
 // want to specify the virtual source/dest address, or an interface name
 func SendFakeIPPacket(conn *net.UDPConn, linkLayerRemoteAddr *net.UDPAddr,
-	sourceIp net.IP, destIp net.IP,
+	sourceIp netip.Addr, destIp netip.Addr,
 	protocol int, payload []byte) (int, error) {
 
 	// FIll in the IP header
 	// NOTE:  This example uses hard-coded values for the
 	// source, destination, and protocol--you will need to
 	// do something different!
-	hdr := ipv4.Header{
+	hdr := ipv4header.IPv4Header{
 		Version:  4,
 		Len:      20, // Header length is always 20 when no IP options
 		TOS:      0,
-		TotalLen: ipv4.HeaderLen + len(payload),
+		TotalLen: ipv4header.HeaderLen + len(payload),
 		ID:       0,
 		Flags:    0,
 		FragOff:  0,
@@ -170,8 +172,8 @@ func main() {
 		log.Panicln("Dial: ", err)
 	}
 
-	fakeSourceIp := net.ParseIP("192.168.0.1")
-	fakeDestIp := net.ParseIP("192.168.0.2")
+	fakeSourceIp := netip.MustParseAddr("10.0.0.1")
+	fakeDestIp := netip.MustParseAddr("10.1.0.2")
 
 	bytesWritten, err := SendFakeTCPPacket(conn, remoteAddr, fakeSourceIp, fakeDestIp, []byte(message))
 	if err != nil {

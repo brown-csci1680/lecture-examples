@@ -3,15 +3,13 @@ package iptcp_utils
 import (
 	"encoding/binary"
 	"fmt"
-	"net"
+	"net/netip"
 	"strings"
 
 	"github.com/google/netstack/tcpip/header"
-	"golang.org/x/net/ipv4"
 )
 
 const (
-	IpHeaderLen          = ipv4.HeaderLen
 	TcpHeaderLen         = header.TCPMinimumSize
 	TcpPseudoHeaderLen   = 12
 	IpProtoTcp           = header.TCPProtocolNumber
@@ -47,29 +45,15 @@ func ParseTCPHeader(b []byte) header.TCPFields {
 // For more details, see the "Checksum" component of RFC9293 Section 3.1,
 // https://www.rfc-editor.org/rfc/rfc9293.txt
 func ComputeTCPChecksum(tcpHdr *header.TCPFields,
-	sourceIP net.IP, destIP net.IP, payload []byte) uint16 {
+	sourceIP netip.Addr, destIP netip.Addr, payload []byte) uint16 {
 
 	// Fill in the pseudo header
 	pseudoHeaderBytes := make([]byte, TcpPseudoHeaderLen)
 
 	// First are the source and dest IPs.  This function only supports
 	// IPv4, so make sure the IPs are IPv4 addresses
-	if ip := sourceIP.To4(); ip != nil {
-		copy(pseudoHeaderBytes[0:4], ip)
-	} else {
-		// This error shouldn't ever occur in our project
-		// If it did, would it be appropriate to call panic()?
-		// No.  If we encounter a packet that has a processing
-		// error, we should really just drop the packet, not
-		// crash the node!
-		panic("Invalid source IP length, only IPv4 supported")
-	}
-
-	if ip := destIP.To4(); ip != nil {
-		copy(pseudoHeaderBytes[4:8], ip)
-	} else {
-		panic("Invalid dest IP length, only IPv4 supported")
-	}
+	copy(pseudoHeaderBytes[0:4], sourceIP.AsSlice())
+	copy(pseudoHeaderBytes[4:8], destIP.AsSlice())
 
 	// Next, add the protocol number and header length
 	pseudoHeaderBytes[8] = uint8(0)
