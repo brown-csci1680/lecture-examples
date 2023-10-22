@@ -23,7 +23,7 @@ const (
 
 func main() {
 	if len(os.Args) != 2 {
-		fmt.Printf("Usage:  %s <port>\n", os.Args[0])
+		fmt.Printf("Usage:  %s <udp bind port>\n", os.Args[0])
 		os.Exit(1)
 	}
 
