@@ -45,7 +45,7 @@ func SendFakeTCPPacket(conn *net.UDPConn, linkLayerRemoteAddr *net.UDPAddr,
 	// and ack numbers, flags, and window size--you will want to do something
 	// VERY different in your project!
 	tcpHdr := header.TCPFields{
-		SrcPort:       12345,
+		SrcPort:       47597,
 		DstPort:       80,
 		SeqNum:        1,
 		AckNum:        1,
@@ -172,8 +172,8 @@ func main() {
 		log.Panicln("Dial: ", err)
 	}
 
-	fakeSourceIp := netip.MustParseAddr("10.0.0.1")
-	fakeDestIp := netip.MustParseAddr("10.1.0.2")
+	fakeSourceIp := netip.MustParseAddr("192.168.0.1")
+	fakeDestIp := netip.MustParseAddr("192.168.0.2")
 
 	bytesWritten, err := SendFakeTCPPacket(conn, remoteAddr, fakeSourceIp, fakeDestIp, []byte(message))
 	if err != nil {

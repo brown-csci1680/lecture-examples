@@ -9,18 +9,18 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${workspaceFolder}/cmd/snowcast_server",
+            "program": "${workspaceFolder}/cmd/udp-ip-send",
             "console": "integratedTerminal",
-            "args": ["16800 mp3/..."]
+            "args": ["5000", "127.0.0.1", "5001", "aaaaaaaaaaaa"]
         },
         {
             "name": "Launch receiver",
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${workspaceFolder}/cmd/receiver",
+            "program": "${workspaceFolder}/cmd/udp-ip-recv",
             "console": "integratedTerminal",
-            "args": ["localhost", "6666"]
-        }
+            "args": ["5001"]
+        },
     ]
 }

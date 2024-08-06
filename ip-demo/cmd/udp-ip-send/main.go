@@ -57,7 +57,7 @@ func main() {
 
 	// Bind on the local UDP port:  this sets the source port
 	// and creates a conn
-	conn, err := net.ListenUDP("udp4", bindLocalAddr)
+	conn, err := net.ListenUDP("udp4", bindLocalAddr) // h1 listen on port 5001 for if0
 	if err != nil {
 		log.Panicln("Dial: ", err)
 	}
@@ -77,8 +77,8 @@ func main() {
 		TTL:      32,
 		Protocol: 0,
 		Checksum: 0, // Should be 0 until checksum is computed
-		Src:      netip.MustParseAddr("192.168.0.1"),
-		Dst:      netip.MustParseAddr("192.168.0.2"),
+		Src:      netip.MustParseAddr("10.0.0.1"),
+		Dst:      netip.MustParseAddr("10.1.0.2"),
 		Options:  []byte{},
 	}
 
@@ -90,18 +90,21 @@ func main() {
 
 	// Compute the checksum (see below)
 	// Cast back to an int, which is what the Header structure expects
-	hdr.Checksum = int(ComputeChecksum(headerBytes))
+	hdr.Checksum = int(ComputeChecksum(headerBytes)) + 1
 
 	headerBytes, err = hdr.Marshal()
 	if err != nil {
 		log.Fatalln("Error marshalling header:  ", err)
 	}
 
+	// Append header + message into one byte array
 	bytesToSend := make([]byte, 0, len(headerBytes)+len(message))
 	bytesToSend = append(bytesToSend, headerBytes...)
 	bytesToSend = append(bytesToSend, []byte(message)...)
 
 	// Send the message to the "link-layer" addr:port on UDP
+	// FOr h1:  send to port 5002
+	// ONE CALL TO WriteToUDP => 1 PACKET
 	bytesWritten, err := conn.WriteToUDP(bytesToSend, remoteAddr)
 	if err != nil {
 		log.Panicln("Error writing to socket: ", err)

@@ -15,9 +15,6 @@ import (
 )
 
 func main() {
-	repl := ReplInitialize()
-	defer repl.Close()
-
 	if len(os.Args) != 3 {
 		fmt.Printf("Usage:  %s <port> <directory>\n", os.Args[0])
 		os.Exit(1)

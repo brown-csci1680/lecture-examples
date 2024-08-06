@@ -24,6 +24,6 @@ func main() {
 	}
 
 	toPrint := string(buffer)
-	fmt.Printf("Read %d bytes:  %s", b, toPrint)
+	fmt.Printf("Read %d bytes:  %s\n", b, toPrint)
 
 }

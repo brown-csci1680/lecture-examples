@@ -8,7 +8,7 @@ import (
 const MaxMessageSize = 1500
 
 func main() {
-	listenConn, err := net.Listen("tcp4", "127.0.0.1:6666")
+	listenConn, err := net.Listen("tcp", "127.0.0.1:6666")
 	if err != nil {
 		panic(err) // Good enough for now
 	}
@@ -18,13 +18,13 @@ func main() {
 		panic(err)
 	}
 
-	buffer := make([]byte, MaxMessageSize)
+	buffer := make([]byte, MaxMessageSize) //new(bytes.Buffer) //make([]byte, MaxMessageSize)
 	b, err := clientConn.Read(buffer)
 	if err != nil {
 		panic(err) // Good enough for now
 	}
 
-	toPrint := string(buffer)
-	fmt.Printf("Read %d bytes:  %s", b, toPrint)
+	toPrint := "" //string(buffer)
+	fmt.Printf("Read %d bytes:  %s\n", b, toPrint)
 
 }
