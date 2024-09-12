@@ -24,7 +24,7 @@ func main() {
 		panic(err) // Good enough for now
 	}
 
-	toPrint := "" //string(buffer)
+	toPrint := string(buffer) //string(buffer)
 	fmt.Printf("Read %d bytes:  %s\n", b, toPrint)
 
 }

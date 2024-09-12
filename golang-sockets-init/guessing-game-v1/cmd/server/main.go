@@ -18,6 +18,7 @@ type ClientInfo struct {
 var gameInfo *game.GameInfo
 
 func main() {
+	// Instead of cluttering our program printing to stdout, we can use the log package to write
 	log.SetOutput(os.Stderr)
 
 	gameInfo = game.InitializeGame()
@@ -53,7 +54,7 @@ func main() {
 }
 
 func handleClient(ci *ClientInfo) {
-	log.Printf("%s:  Starting client handler\n", ci.Conn.RemoteAddr())
+	log.Printf("Client connected from %s\n", ci.Conn.RemoteAddr())
 	for {
 		// Try to read a guess message from the socket
 		msg, err := protocol.ReadGuessMessage(ci.Conn)
