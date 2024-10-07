@@ -90,7 +90,7 @@ func main() {
 
 	// Compute the checksum (see below)
 	// Cast back to an int, which is what the Header structure expects
-	hdr.Checksum = int(ComputeChecksum(headerBytes)) + 1
+	hdr.Checksum = int(ComputeChecksum(headerBytes))
 
 	headerBytes, err = hdr.Marshal()
 	if err != nil {
